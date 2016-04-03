@@ -1,0 +1,63 @@
+#!/usr/bin/make -f
+
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+%:
+	dh ${@} --parallel --with autoreconf,autotools_dev,python3,systemd
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		--disable-rpath \
+		--enable-doc \
+		--enable-api-docs \
+		--enable-apparmor \
+		--enable-selinux \
+		--enable-cgmanager \
+		--enable-capabilities \
+		--enable-examples \
+		--enable-python \
+		--disable-mutex-debugging \
+		--enable-lua \
+		--enable-bash \
+		--enable-tests \
+		--enable-configpath-log \
+		--with-distro=debian \
+		--with-init-script=sysvinit,systemd \
+		--with-systemdsystemunitdir=/lib/systemd/system
+
+override_dh_auto_install:
+	dh_auto_install
+
+	# lxc
+	mkdir -p debian/lxc/usr/share/bash-completion
+	mv debian/tmp/etc/bash_completion.d debian/lxc/usr/share/bash-completion/completions
+
+	# lxc-dev
+	mkdir -p debian/lxc-dev/usr/bin
+	mv debian/tmp/usr/bin/lxc-test-* debian/lxc-dev/usr/bin
+
+	# remove lxc-top until lua-alt-getopt is available
+	rm -f debian/tmp/usr/bin/lxc-top
+	rm -f debian/tmp/usr/share/man/*/lxc-top.*
+	rm -f debian/tmp/usr/share/man/*/*/lxc-top.*
+
+	dh_apparmor -p lxc --profile-name=usr.bin.lxc-start
+
+override_dh_compress:
+	dh_compress -X.cfg
+
+override_dh_fixperms:
+	dh_fixperms -Xusr/lib/$(DEB_HOST_MULTIARCH)/lxc/lxc-user-nic
+
+override_dh_install:
+	dh_install --fail-missing
+
+override_dh_installinit:
+	dh_installinit -p lxc --onlyscripts --no-restart-on-upgrade --no-start --name lxc
+	dh_installinit -p lxc --onlyscripts --no-restart-on-upgrade --no-start --name lxc-net
+
+override_dh_strip:
+	dh_strip --dbg-package=lxc-dbg
+
+override_dh_systemd_start:
+	dh_systemd_start --no-restart-on-upgrade

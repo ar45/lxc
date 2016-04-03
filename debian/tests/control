@@ -1,0 +1,10 @@
+Tests: exercise
+Depends: busybox-static,
+         debootstrap,
+         uidmap,
+         xz-utils,
+         lsb-release,
+         file,
+         dnsmasq-base,
+         @
+Restrictions: needs-root allow-stderr
